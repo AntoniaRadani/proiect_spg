@@ -19,6 +19,8 @@ add_executable(clion_spg
         SimulatorApp/ClothSimulator/Spring.h
         SimulatorApp/Renderer/Shader.cpp
         SimulatorApp/Renderer/Shader.h
+        SimulatorApp/Primitives/Sphere.cpp
+        SimulatorApp/Primitives/Sphere.h
 )
 
 target_link_libraries(clion_spg
