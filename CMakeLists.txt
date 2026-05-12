@@ -9,6 +9,15 @@ find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
 find_package(GLEW REQUIRED)
 
+set(IMGUI_SOURCES
+        SimulatorApp/imgui/imgui.cpp
+        SimulatorApp/imgui/imgui_draw.cpp
+        SimulatorApp/imgui/imgui_widgets.cpp
+        SimulatorApp/imgui/imgui_tables.cpp
+        SimulatorApp/imgui/imgui_impl_glfw.cpp
+        SimulatorApp/imgui/imgui_impl_opengl3.cpp
+)
+
 add_executable(clion_spg
         SimulatorApp/main.cpp
         SimulatorApp/ClothSimulator/Particle.cpp
@@ -21,6 +30,7 @@ add_executable(clion_spg
         SimulatorApp/Renderer/Shader.h
         SimulatorApp/Primitives/Sphere.cpp
         SimulatorApp/Primitives/Sphere.h
+        ${IMGUI_SOURCES}
 )
 
 target_link_libraries(clion_spg

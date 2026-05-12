@@ -2,9 +2,11 @@
 #include <glm/glm.hpp>
 
 using namespace glm;
+using namespace std;
 
 class Particle {
 public:
+    vec3 initialPosition;       // pozitia initiala
     vec3 position;              // pozitia curenta a punctului
     vec3 prevPosition;          // pozitia din cadrul anterior
     vec3 acceleration;          // pentru a stoca toate fortele care actioneaza asupra unui punct

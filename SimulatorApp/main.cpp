@@ -1,126 +1,191 @@
-#define GL_SILENCE_DEPRECATION
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <iostream>
-#include <vector>
+ #define STB_IMAGE_IMPLEMENTATION
+ #include "Headers/stb_image.h"
+ #include <GL/glew.h>
+ #include <GLFW/glfw3.h>
+ #include <glm/glm.hpp>
+ #include <glm/gtc/matrix_transform.hpp>
+ #include <iostream>
+ #include <vector>
+ #include <algorithm>
 
-#include "Renderer/Shader.h"
-#include "ClothSimulator/Cloth.h"
-#include "Primitives/Sphere.h"
+ #include "Renderer/Shader.h"
+ #include "ClothSimulator/Cloth.h"
+ #include "Primitives/Sphere.h"
 
-const unsigned int SCR_WIDTH = 1000;
-const unsigned int SCR_HEIGHT = 800;
+ const unsigned int SCR_WIDTH = 1000;
+ const unsigned int SCR_HEIGHT = 800;
 
-glm::vec3 cameraPos   = glm::vec3(0.0f, 1.0f, 4.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, -0.2f, -1.0f);
-glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
+ bool isRunning = false;
+ glm::vec3 spherePos(0.0f);
+ float sphereRadius = 1.0f;
+ float sphereScale = 1.0f;
+ float clothScale = 1.0f;
+ float generalScale = 1.0f;
 
-void setupBuffers(GLuint &VAO, GLuint &VBO) {
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+ unsigned int loadTexture(const char* path) {
+     unsigned int id;
+     glGenTextures(1, &id);
+     int w, h, c;
+     stbi_set_flip_vertically_on_load(true);
+     unsigned char* data = stbi_load(path, &w, &h, &c, 0);
+     if (data) {
+         GLenum f = (c == 4) ? GL_RGBA : GL_RGB;
+         glBindTexture(GL_TEXTURE_2D, id);
+         glTexImage2D(GL_TEXTURE_2D, 0, f, w, h, 0, f, GL_UNSIGNED_BYTE, data);
+         glGenerateMipmap(GL_TEXTURE_2D);
+         stbi_image_free(data);
+     } else {
+         unsigned char white[] = {255, 255, 255};
+         glBindTexture(GL_TEXTURE_2D, id);
+         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, white);
+     }
+     return id;
+ }
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+ void processInput(GLFWwindow* window, float deltaTime, Cloth& cloth) {
+     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+         glfwSetWindowShouldClose(window, true);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-}
+     static bool spacePressed = false;
+     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+         if (!spacePressed) isRunning = !isRunning;
+         spacePressed = true;
+     } else spacePressed = false;
 
-int main() {
-    if (!glfwInit()) return -1;
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
+     if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) {
+         cloth.reset();
+         isRunning = false;
+         spherePos = glm::vec3(0.0f);
+         sphereScale = 1.0f;
+         clothScale = 1.0f;
+         generalScale = 1.0f;
+     }
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Cloth Simulation SPG - Sfera", NULL, NULL);
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
+     float moveSpeed = 3.0f * deltaTime;
+     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) spherePos.z -= moveSpeed;
+     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) spherePos.z += moveSpeed;
+     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) spherePos.x -= moveSpeed;
+     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) spherePos.x += moveSpeed;
 
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) return -1;
+     float scaleSpeed = 1.5f * deltaTime;
+     bool ctrl = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SUPER) == GLFW_PRESS;
 
-    glEnable(GL_DEPTH_TEST);
+     if (ctrl) {
+         if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) sphereScale += scaleSpeed;
+         if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) sphereScale = std::max(0.1f, sphereScale - scaleSpeed);
+     } else {
+         if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) clothScale += scaleSpeed;
+         if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) clothScale = std::max(0.1f, clothScale - scaleSpeed);
+     }
 
-    Shader ourShader("Shaders/basic.vert", "Shaders/basic.frag");
+     if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) generalScale = std::max(0.1f, generalScale - scaleSpeed);
+     if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) generalScale += scaleSpeed;
+ }
 
-    Sphere sphere(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, 40, 40);
+ int main() {
+     if (!glfwInit()) return -1;
+     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+ #ifdef __APPLE__
+     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+ #endif
 
-    Cloth cloth(30, 30, 0.1f);
+     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Cloth Simulator", NULL, NULL);
+     if (!window) { glfwTerminate(); return -1; }
+     glfwMakeContextCurrent(window);
+     glewExperimental = GL_TRUE;
+     glewInit();
+     glEnable(GL_DEPTH_TEST);
 
-    GLuint clothVAO, clothVBO;
-    setupBuffers(clothVAO, clothVBO);
+     Shader ourShader("Shaders/basic.vert", "Shaders/basic.frag");
+     unsigned int fabricTex = loadTexture("Textures/brickwall_normal.jpg");
+     unsigned int sphereTex = loadTexture("Textures/planet.jpg");
 
-    GLuint sphereVAO, sphereVBO;
-    setupBuffers(sphereVAO, sphereVBO);
+     Cloth cloth(25, 25, 0.12f);
+     Sphere sphere(glm::vec3(0.0f), 1.0f, 40, 40);
 
-    glBindVertexArray(sphereVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, sphereVBO);
-    glBufferData(GL_ARRAY_BUFFER, sphere.interleavedData.size() * sizeof(float), sphere.interleavedData.data(), GL_STATIC_DRAW);
+     GLuint cVAO, cVBO, sVAO, sVBO;
+     glGenVertexArrays(1, &cVAO); glGenBuffers(1, &cVBO);
+     glGenVertexArrays(1, &sVAO); glGenBuffers(1, &sVBO);
 
-    float lastFrame = 0.0f;
-    while (!glfwWindowShouldClose(window)) {
-        float currentFrame = glfwGetTime();
-        float deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+     glBindVertexArray(sVAO);
+     glBindBuffer(GL_ARRAY_BUFFER, sVBO);
+     glBufferData(GL_ARRAY_BUFFER, sphere.interleavedData.size() * sizeof(float), sphere.interleavedData.data(), GL_STATIC_DRAW);
+     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0); glEnableVertexAttribArray(0);
+     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float))); glEnableVertexAttribArray(1);
+     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float))); glEnableVertexAttribArray(2);
 
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
+     float lastFrame = 0.0f;
+     //glClearColor(0.244f, 0.188f, 0.217f, 1.0f);
+     glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
 
-        cloth.simulate(0.012f, sphere.center, sphere.radius, 10);
+     while (!glfwWindowShouldClose(window)) {
+         float currentFrame = (float)glfwGetTime();
+         float deltaTime = currentFrame - lastFrame;
+         lastFrame = currentFrame;
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+         processInput(window, deltaTime, cloth);
 
-        ourShader.use();
+         if (isRunning) {
+             // 1. Calculăm factorul de scalare combinat pentru sferă
+             // Inversăm scalarea pânzei pentru a aduce sfera în "spațiul local" al pânzei
+             float relativeScale = (1.0f / clothScale);
 
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
+             // 2. Ajustăm raza de coliziune
+             // Aceasta trebuie să țină cont de cât de mare e bila față de pânză
+             float collisionRadius = (1.0f * sphereScale) * relativeScale;
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)display_w / (float)display_h, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+             // 3. Ajustăm poziția de coliziune
+             // Mutăm centrul sferei astfel încât să corespundă cu mărirea/micșorarea pânzei
+             glm::vec3 collisionPos = spherePos * relativeScale;
 
-        ourShader.setVec3("objectColor", glm::vec3(1.0f, 0.71f, 0.75f));
-        glm::mat4 modelSphere = glm::mat4(1.0f);
-        ourShader.setMat4("model", modelSphere);
-        glBindVertexArray(sphereVAO);
-        glDrawArrays(GL_TRIANGLES, 0, sphere.interleavedData.size() / 6);
+             // 4. Trimitem datele ajustate către simulator
+             // Folosim deltaTime pentru o mișcare fluidă
+             cloth.simulate(deltaTime, collisionPos, collisionRadius, 5);
+         }
 
-        ourShader.setVec3("objectColor", glm::vec3(1.0f, 0.0f, 0.0f));
-        glm::mat4 modelCloth = glm::mat4(1.0f);
-        ourShader.setMat4("model", modelCloth);
+         int width, height;
+         glfwGetFramebufferSize(window, &width, &height);
+         glViewport(0, 0, width, height);
 
-        std::vector<float> clothData;
-        cloth.getFullMeshData(clothData);
-        glBindVertexArray(clothVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, clothVBO);
-        glBufferData(GL_ARRAY_BUFFER, clothData.size() * sizeof(float), clothData.data(), GL_DYNAMIC_DRAW);
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glDrawArrays(GL_TRIANGLES, 0, clothData.size() / 6);
+         ourShader.use();
+         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
+         glm::mat4 view = glm::lookAt(glm::vec3(0, 5, 10), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+         ourShader.setMat4("projection", projection);
+         ourShader.setMat4("view", view);
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+         glm::mat4 generalModel = glm::scale(glm::mat4(1.0f), glm::vec3(generalScale));
 
-    glDeleteVertexArrays(1, &clothVAO);
-    glDeleteBuffers(1, &clothVBO);
-    glDeleteVertexArrays(1, &sphereVAO);
-    glDeleteBuffers(1, &sphereVBO);
+         glBindTexture(GL_TEXTURE_2D, fabricTex);
+         glm::mat4 modelCloth = glm::scale(generalModel, glm::vec3(clothScale));
+         ourShader.setMat4("model", modelCloth);
+         std::vector<float> cData;
+         cloth.getFullMeshData(cData);
+         glBindVertexArray(cVAO);
+         glBindBuffer(GL_ARRAY_BUFFER, cVBO);
+         glBufferData(GL_ARRAY_BUFFER, cData.size() * sizeof(float), cData.data(), GL_DYNAMIC_DRAW);
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0); glEnableVertexAttribArray(0);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float))); glEnableVertexAttribArray(1);
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float))); glEnableVertexAttribArray(2);
+         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(cData.size() / 8));
 
-    glfwTerminate();
-    return 0;
-}
+         glBindTexture(GL_TEXTURE_2D, sphereTex);
+         glm::mat4 modelSphere = glm::translate(generalModel, spherePos);
+         modelSphere = glm::scale(modelSphere, glm::vec3(sphereScale));
+         ourShader.setMat4("model", modelSphere);
+         glBindVertexArray(sVAO);
+         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(sphere.interleavedData.size() / 8));
+
+         glfwSwapBuffers(window);
+         glfwPollEvents();
+     }
+
+     glDeleteVertexArrays(1, &cVAO); glDeleteBuffers(1, &cVBO);
+     glDeleteVertexArrays(1, &sVAO); glDeleteBuffers(1, &sVBO);
+     glfwTerminate();
+     return 0;
+ }
+

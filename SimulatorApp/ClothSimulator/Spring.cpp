@@ -1,7 +1,5 @@
 #include "Spring.h"
 
-using namespace glm;
-
 // constructor
 Spring::Spring(Particle* a, Particle*b, SpringType t, float k) {
     p1 = a;

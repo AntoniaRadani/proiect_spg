@@ -3,6 +3,7 @@
 // constructor
 Particle::Particle(const vec3& pos, bool fixed) {
     // v = position - prevPosition => viteza_init = 0
+    initialPosition = pos;
     position = pos;
     prevPosition = pos;
     acceleration = vec3(0.0f);       // nu actioneaza nicio forta la inceput

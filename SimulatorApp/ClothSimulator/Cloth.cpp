@@ -1,8 +1,5 @@
 #include "Cloth.h"
 
-using namespace glm;
-using namespace std;
-
 // constructor
 Cloth::Cloth(int w, int h, float s) {
     width = w;
@@ -139,7 +136,23 @@ void Cloth::getFullMeshData(vector<float>& data) {
                 data.push_back(p.normal.x);
                 data.push_back(p.normal.y);
                 data.push_back(p.normal.z);
+                // coordonate textura
+                int curentIdx = indices[idx];
+                float u = (float)(curentIdx % width) / (float)(width - 1);
+                float v = (float)(curentIdx / width) / (float)(height - 1);
+                data.push_back(u);
+                data.push_back(v);
             }
         }
+    }
+}
+
+// functie pentru resetarea pozitiei panzei
+void Cloth::reset() {
+    for (int i = 0; i < particles.size(); i++) {
+        particles[i].position = particles[i].initialPosition;
+        particles[i].prevPosition = particles[i].initialPosition; // => oprirea miscarii
+        particles[i].acceleration = vec3(0.0f);
+
     }
 }

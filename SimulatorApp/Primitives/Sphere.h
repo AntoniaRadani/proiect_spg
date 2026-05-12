@@ -10,6 +10,7 @@ public:
     int stacks;         // nr diviziuni verticala
     int sectors;        // nr diviziuni orizontala
 
+    // vector cu pozitie vertex + normala
     std::vector<float> interleavedData;
 
     Sphere(glm::vec3 c = glm::vec3(0.0f), float r = 0.5f, int st = 30, int sec = 30);
@@ -17,5 +18,5 @@ public:
 
 private:
     glm::vec3 calculatePoint(float phi, float theta);
-    void addVertex(const glm::vec3& p);
+    void addVertex(const glm::vec3& p, float u, float v);
 };

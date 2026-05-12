@@ -18,10 +18,16 @@ void Sphere::build() {
     interleavedData.clear();
 
     for (int i = 0; i < stacks; i++) {
+        float v1 = (float)i / stacks;
+        float v2 = (float)(i + 1) / stacks;
+
         float phi1 = pi<float>() * (float)i / stacks;
         float phi2 = pi<float>() * (float)(i + 1) / stacks;
 
         for (int j = 0; j < sectors; j++) {
+            float u1 = (float)j / sectors;
+            float u2 = (float)(j + 1) / sectors;
+
             float theta1 = 2.0f * pi<float>() * (float)j / sectors;
             float theta2 = 2.0f * pi<float>() * (float)(j + 1) / sectors;
 
@@ -36,13 +42,13 @@ void Sphere::build() {
             vec3 p4 = calculatePoint(phi1, theta2);
 
             // patrat -> triunghi
-            addVertex(p1);
-            addVertex(p2);
-            addVertex(p3);
+            addVertex(p1, u1, v1);
+            addVertex(p2, u1, v2);
+            addVertex(p3, u2, v2);
 
-            addVertex(p1);
-            addVertex(p3);
-            addVertex(p4);
+            addVertex(p1, u1, v1);
+            addVertex(p3, u2, v2);
+            addVertex(p4, u2, v1);
         }
     }
 }
@@ -57,7 +63,7 @@ vec3 Sphere::calculatePoint(float phi, float theta) {
 }
 
 // adaugam punctele in buffer pentru desenare
-void Sphere::addVertex(const vec3& p) {
+void Sphere::addVertex(const vec3& p, float u, float v) {
     interleavedData.push_back(p.x);
     interleavedData.push_back(p.y);
     interleavedData.push_back(p.z);
@@ -67,5 +73,8 @@ void Sphere::addVertex(const vec3& p) {
     interleavedData.push_back(normal.x);
     interleavedData.push_back(normal.y);
     interleavedData.push_back(normal.z);
+
+    interleavedData.push_back(u);
+    interleavedData.push_back(v);
 }
 
