@@ -4,7 +4,7 @@
 
 // structural - leaga particulele vecine
 // shear - leaga particulele pe diagonala
-// bend - leaga particulele peste una
+// bend - leaga particulele din doua in doua
 enum class SpringType { STRUCTURAL, SHEAR, BEND };
 
 class Spring {

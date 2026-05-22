@@ -82,28 +82,64 @@ void Cloth::simulate(float dt, const vec3& sphereCenter, float sphereRadius, int
     computeNormals();
 }
 
+// void Cloth::computeNormals() {
+//     // reset la normale
+//     for (auto& p : particles)
+//         p.normal = vec3(0.0f);
+//
+//     for (int y = 0; y < height - 1; y++) {
+//         for (int x = 0; x < width - 1; x++) {
+//             // calcul plan formal din 3 particule vecine
+//             int i = y * width + x;
+//             vec3 v1 = particles[i + 1].position - particles[i].position;
+//             vec3 v2 = particles[i + width].position - particles[i].position;
+//             // produs vectorial
+//             vec3 n = cross(v1, v2);
+//
+//             // distribuim "n" = normala calculata fiecarei particule
+//             particles[i].normal += n;
+//             particles[i + 1].normal += n;
+//             particles[i + width].normal += n;
+//         }
+//     }
+//
+//     // aducem vectorul la lungimea unitara, pastrand doar distanta
+//     for (auto& p : particles)
+//         p.normal = normalize(p.normal);
+// }
+
 void Cloth::computeNormals() {
     // reset la normale
     for (auto& p : particles)
         p.normal = vec3(0.0f);
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            // calcul plan formal din 3 particule vecine
+    for (int y = 0; y < height - 1; y++) {
+        for (int x = 0; x < width - 1; x++) {
             int i = y * width + x;
+
+            // triunghiul 1 (sus stanga)
             vec3 v1 = particles[i + 1].position - particles[i].position;
             vec3 v2 = particles[i + width].position - particles[i].position;
-            // produs vectorial
-            vec3 n = cross(v1, v2);
 
-            // distribuim "n" = normala calculata fiecarei particule
-            particles[i].normal += n;
-            particles[i + 1].normal += n;
-            particles[i + width].normal += n;
+            vec3 n1 = cross(v2, v1);
+
+            particles[i].normal += n1;
+            particles[i + 1].normal += n1;
+            particles[i + width].normal += n1;
+
+            // triunghi 2 (jos dreapta)
+            vec3 v3 = particles[i + width].position - particles[i + width + 1].position;
+            vec3 v4 = particles[i + 1].position - particles[i + width + 1].position;
+
+            vec3 n2 = cross(v4, v3);
+
+            particles[i + width + 1].normal += n2;
+            particles[i + width].normal += n2;
+            particles[i + 1].normal += n2;
         }
     }
 
-    // aducem vectorul la lungimea unitara, pastrand doar distanta
+    // aducem vectorul la lungimea unitara
     for (auto& p : particles)
         p.normal = normalize(p.normal);
 }
